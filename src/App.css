@@ -4,18 +4,9 @@ body {
   font-family: 'Helvetica Neue', Arial, sans-serif;
   background-color: #f4f7f6;
   margin: 0;
-  padding: 0; /* 閲覧モードを画面端まで広げるために0にする */
+  padding: 5; 
 }
 
-bigtitle{
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 20px;
-  color: black;
-}
-
-/* --- 閲覧モード（全画面表示） --- */
 .viewer-fullscreen {
   display: flex;
   flex-direction: column;
@@ -36,7 +27,7 @@ bigtitle{
 .viewer-header h2 { margin: 0; font-size: 1.2rem; }
 
 .pdf-iframe {
-  flex-grow: 1; /* 残りの高さをすべて埋める */
+  flex-grow: 1; 
   border: none;
   width: 100%;
 }
