@@ -128,7 +128,7 @@ function App() {
   return (
     <div className="app-container">
       <header className="main-header">
-        <h1 color='#333'>PDF Linker</h1>
+        <h1 className='bigtitle'>PDF Linker</h1>
         {user ? (
           <div className="user-info">
             <img src={user.photoURL} alt="icon" className="user-icon" />

@@ -1,9 +1,18 @@
 /* 全体のリセットとベース設定 */
+
 body {
   font-family: 'Helvetica Neue', Arial, sans-serif;
   background-color: #f4f7f6;
   margin: 0;
   padding: 0; /* 閲覧モードを画面端まで広げるために0にする */
+}
+
+bigtitle{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  color: black;
 }
 
 /* --- 閲覧モード（全画面表示） --- */
