@@ -1,148 +1,194 @@
 import React, { useState, useEffect } from 'react';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { storage } from './firebase';
+import { ref, uploadBytesResumable, getDownloadURL, listAll } from 'firebase/storage';
+import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { storage, auth, provider } from './firebase';
 import { PDFDocument } from 'pdf-lib';
 import './App.css';
 
 function App() {
-  const [file, setFile] = useState(null);
+  const [user, setUser] = useState(null);
+  const[file, setFile] = useState(null);
   const [progress, setProgress] = useState(0);
-  const [shareUrl, setShareUrl] = useState('');
+  const [isCompressing, setIsCompressing] = useState(false);
+  const[shareUrl, setShareUrl] = useState('');
   const [viewPdfUrl, setViewPdfUrl] = useState('');
-  const[isCompressing, setIsCompressing] = useState(false);
+  const [pdfList, setPdfList] = useState([]); // 過去のPDF一覧
 
+  // URLチェックとログイン状態の監視
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const url = params.get('pdf');
     if (url) {
       setViewPdfUrl(url);
     }
+
+    // ログイン状態の監視
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        fetchPdfList(currentUser.uid);
+      } else {
+        setPdfList([]);
+      }
+    });
+    return () => unsubscribe();
   },[]);
 
-  const handleFileChange = (e) => {
-    if (e.target.files[0]) {
-      setFile(e.target.files[0]);
+  const login = () => signInWithPopup(auth, provider);
+  const logout = () => signOut(auth);
+
+  // 過去にアップロードしたPDFの一覧を取得
+  const fetchPdfList = async (uid) => {
+    const listRef = ref(storage, `pdfs/${uid}`);
+    try {
+      const res = await listAll(listRef);
+      // 新しい順にソート (ファイル名のタイムスタンプを利用)
+      const sortedItems = res.items.sort((a, b) => b.name.localeCompare(a.name));
+      
+      const fileData = await Promise.all(sortedItems.map(async (item) => {
+        const url = await getDownloadURL(item);
+        const nameMatch = item.name.match(/^\d+_(.+)$/);
+        const originalName = nameMatch ? nameMatch[1] : item.name;
+        return { name: originalName, url: url };
+      }));
+      setPdfList(fileData);
+    } catch (error) {
+      console.error('一覧取得エラー:', error);
     }
   };
 
-const handleUpload = async () => {
-    if (!file) return;
+  const handleFileChange = (e) => {
+    if (e.target.files[0]) setFile(e.target.files[0]);
+  };
 
+  const handleUpload = async () => {
+    if (!file || !user) return;
     let uploadFile = file;
     setIsCompressing(true);
 
+    // 簡易圧縮処理
     try {
-      // ファイルをArrayBufferとして読み込む
       const arrayBuffer = await file.arrayBuffer();
-      // PDFとしてパースする
       const pdfDoc = await PDFDocument.load(arrayBuffer);
-      
-      // オブジェクトストリームを有効にして保存（不要な構造データを削減）
       const pdfBytes = await pdfDoc.save({ useObjectStreams: true });
-      
       if (pdfBytes.length < file.size) {
         uploadFile = new File([pdfBytes], file.name, { type: 'application/pdf' });
-        console.log(`圧縮成功: ${(file.size / 1024).toFixed(1)}KB -> ${(uploadFile.size / 1024).toFixed(1)}KB`);
-      } else {
-        console.log('圧縮によるサイズ削減がなかったため、元のファイルを使用します。');
       }
     } catch (error) {
-      console.error('圧縮処理中にエラーが発生しました:', error);
+      console.error('圧縮エラー:', error);
     }
-
     setIsCompressing(false);
 
-    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-    if (uploadFile.size > MAX_FILE_SIZE) {
-      alert('ファイルサイズが10MBを超えています。Macのプレビューやオンラインツール（ILovePDFなど）で圧縮してから再度お試しください。');
+    if (uploadFile.size > 10 * 1024 * 1024) {
+      alert('10MBを超えています。圧縮してサイドアップロードしてください');
       return;
     }
 
-
-    // ファイル名の重複防止
-    const uniqueFileName = `${Date.now()}_${file.name}`;
-    const storageRef = ref(storage, `pdfs/${uniqueFileName}`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
+    // 保存先を「pdfs/ユーザーID/ファイル名」に変更
+    const uniqueFileName = `${Date.now()}_${uploadFile.name}`;
+    const storageRef = ref(storage, `pdfs/${user.uid}/${uniqueFileName}`);
+    const uploadTask = uploadBytesResumable(storageRef, uploadFile);
 
     uploadTask.on(
       'state_changed',
-      (snapshot) => {
-        const currentProgress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-        setProgress(currentProgress);
-      },
-      (error) => {
-        console.error('アップロードエラー:', error);
-        alert('アップロードに失敗しました。');
-      },
+      (snapshot) => setProgress(Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100)),
+      (error) => alert('アップロード失敗'),
       async () => {
         const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-        
-        // 共有用URLの生成
         const currentAppUrl = window.location.origin + window.location.pathname;
-        const generatedShareUrl = `${currentAppUrl}?pdf=${encodeURIComponent(downloadURL)}`;
+        setShareUrl(`${currentAppUrl}?pdf=${encodeURIComponent(downloadURL)}`);
         
-        setShareUrl(generatedShareUrl);
+        // アップロード後に一覧を再取得して更新
+        fetchPdfList(user.uid);
+        setProgress(0);
+        setFile(null);
       }
     );
   };
 
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(shareUrl);
-    alert('URLをコピーしました。');
+  const copyToClipboard = async (url) => {
+    await navigator.clipboard.writeText(url);
+    alert('共有URLをコピーしました。');
   };
 
   if (viewPdfUrl) {
     return (
-      <div className="viewer-container">
-        <header className="header">
-          <h2>PDF Viewer</h2>
+      <div className="viewer-fullscreen">
+        <header className="viewer-header">
+          <h2>📄 PDF Viewer</h2>
           <button onClick={() => window.location.href = window.location.origin + window.location.pathname}>
-            新しくアップロードする
+            アプリのトップに戻る
           </button>
         </header>
-        <iframe
-          src={viewPdfUrl}
-          width="100%"
-          height="80vh"
-          title="PDF Viewer"
-          style={{ border: '1px solid #ccc', borderRadius: '8px', minHeight: '80vh' }}
-        ></iframe>
+        <iframe src={viewPdfUrl} title="PDF Viewer" className="pdf-iframe"></iframe>
       </div>
     );
   }
 
   return (
-    <div className="upload-container">
-      <h1>PDF Linker</h1>
-      <p>PDFをアップロードして、URLを共有しよう。</p>
-      
-      <div className="upload-box">
-        <input type="file" accept="application/pdf" onChange={handleFileChange} />
-        <button 
-          onClick={handleUpload} 
-          disabled={!file || (progress > 0 && progress < 100) || isCompressing}
-        >
-          {isCompressing ? '最適化中...' : 'アップロード'}
-        </button>
-      </div>
-
-      {progress > 0 && progress < 100 && (
-        <p>アップロード中... {progress}%</p>
-      )}
-
-      {shareUrl && (
-        <div className="share-box">
-          <h3>アップロード完了</h3>
-          <div className="share-input-group">
-            <input type="text" value={shareUrl} readOnly />
-            <button onClick={handleCopy}>コピー</button>
+    <div className="app-container">
+      <header className="main-header">
+        <h1>PDF Share App</h1>
+        {user ? (
+          <div className="user-info">
+            <img src={user.photoURL} alt="icon" className="user-icon" />
+            <button className="logout-btn" onClick={logout}>ログアウト</button>
           </div>
-          <button 
-            className="view-btn" 
-            onClick={() => window.location.href = shareUrl}
-          >
-            閲覧
-          </button>
+        ) : (
+          <button onClick={login} className="login-btn">Googleでログイン</button>
+        )}
+      </header>
+
+      {user ? (
+        <div className="dashboard">
+          {/* アップロードエリア */}
+          <div className="upload-section">
+            <h2>新しいPDFをアップロード</h2>
+            <div className="upload-box">
+              <input type="file" accept="application/pdf" onChange={handleFileChange} />
+              <button onClick={handleUpload} disabled={!file || (progress > 0 && progress < 100) || isCompressing}>
+                {isCompressing ? '最適化中...' : 'アップロード'}
+              </button>
+            </div>
+            {progress > 0 && progress < 100 && <p>アップロード中... {progress}%</p>}
+            
+            {shareUrl && (
+              <div className="share-box">
+                <p>アップロード成功</p>
+                <button onClick={() => copyToClipboard(shareUrl)}>URLをコピー</button>
+                <button className="view-btn" onClick={() => window.location.href = shareUrl}>閲覧する</button>
+              </div>
+            )}
+          </div>
+
+          {/* 過去のアップロード一覧エリア */}
+          <div className="history-section">
+            <h2>過去のアップロード</h2>
+            {pdfList.length === 0 ? (
+              <p className="no-data">まだアップロードしたPDFはありません。</p>
+            ) : (
+              <ul className="pdf-list">
+                {pdfList.map((pdf, index) => {
+                  const itemShareUrl = `${window.location.origin}${window.location.pathname}?pdf=${encodeURIComponent(pdf.url)}`;
+                  return (
+                    <li key={index} className="pdf-item">
+                      <span className="pdf-name" onClick={() => window.location.href = itemShareUrl}>
+                        ・ {pdf.name}
+                      </span>
+                      <button className="copy-small-btn" onClick={() => copyToClipboard(itemShareUrl)}>
+                        URLコピー
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="welcome-screen">
+          <p>PDFをアップロード・圧縮して、URLで簡単に共有できるツールです。</p>
+          <p>利用するにはGoogleアカウントでログインしてください。</p>
         </div>
       )}
     </div>

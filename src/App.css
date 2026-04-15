@@ -1,30 +1,69 @@
+/* 全体のリセットとベース設定 */
 body {
   font-family: 'Helvetica Neue', Arial, sans-serif;
   background-color: #f4f7f6;
   margin: 0;
-  padding: 20px;
+  padding: 0; /* 閲覧モードを画面端まで広げるために0にする */
 }
 
-.upload-container, .viewer-container {
-  max-width: 800px;
-  margin: 0 auto;
-  background: white;
-  padding: 30px;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  text-align: center;
+/* --- 閲覧モード（全画面表示） --- */
+.viewer-fullscreen {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background-color: #fff;
 }
 
-.upload-box {
-  margin: 20px 0;
-  padding: 40px 20px;
-  border: 2px dashed #007bff;
-  border-radius: 8px;
-  background-color: #f0f8ff;
-}
-
-button {
+.viewer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: 10px 20px;
+  background-color: #333;
+  color: white;
+}
+
+.viewer-header h2 { margin: 0; font-size: 1.2rem; }
+
+.pdf-iframe {
+  flex-grow: 1; /* 残りの高さをすべて埋める */
+  border: none;
+  width: 100%;
+}
+
+/* --- メイン画面 --- */
+.app-container {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+
+.main-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  border-bottom: 2px solid #ddd;
+  padding-bottom: 10px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.user-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid #007bff;
+}
+
+/* --- ボタン類 --- */
+button {
+  padding: 8px 16px;
   cursor: pointer;
   background-color: #007bff;
   color: white;
@@ -33,40 +72,79 @@ button {
   font-weight: bold;
   transition: 0.2s;
 }
-
 button:hover:not(:disabled) { background-color: #0056b3; }
 button:disabled { background-color: #ccc; cursor: not-allowed; }
 
-.share-box {
-  margin-top: 30px;
-  padding: 20px;
-  background-color: #e6ffed;
-  border-radius: 8px;
-  border: 1px solid #b7ebc6;
+.login-btn { background-color: #4285F4; font-size: 1.1rem; padding: 12px 24px;}
+.logout-btn { background-color: #dc3545; }
+.logout-btn:hover { background-color: #c82333; }
+.view-btn { background-color: #28a745; margin-left: 10px;}
+.copy-small-btn { padding: 5px 10px; font-size: 0.8rem; background-color: #6c757d;}
+
+/* --- ダッシュボード (アップロード & 履歴) --- */
+.dashboard {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+}
+@media (max-width: 768px) {
+  .dashboard { grid-template-columns: 1fr; }
 }
 
-.share-input-group {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
+.upload-section, .history-section {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.upload-box {
+  padding: 30px 10px;
+  border: 2px dashed #007bff;
+  border-radius: 8px;
+  background-color: #f0f8ff;
+  text-align: center;
   margin-bottom: 15px;
 }
 
-.share-input-group input {
-  width: 70%;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+.share-box {
+  margin-top: 15px;
+  padding: 15px;
+  background-color: #e6ffed;
+  border-radius: 8px;
+  border: 1px solid #b7ebc6;
+  text-align: center;
 }
 
-.view-btn {
-  background-color: #28a745;
+/* --- PDFリスト --- */
+.pdf-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
 }
-.view-btn:hover { background-color: #218838; }
 
-.header {
+.pdf-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+}
+.pdf-item:last-child { border-bottom: none; }
+
+.pdf-name {
+  color: #007bff;
+  cursor: pointer;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+.pdf-name:hover { text-decoration: underline; }
+
+.no-data, .welcome-screen {
+  color: #666;
+  text-align: center;
+  margin-top: 20px;
 }
