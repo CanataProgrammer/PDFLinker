@@ -154,7 +154,7 @@ function App() {
             
             {shareUrl && (
               <div className="share-box">
-                <p><font color="#6D6D6E">アップロード成功</font></p>
+                <p>アップロード成功</p>
                 <button onClick={() => copyToClipboard(shareUrl)}>URLをコピー</button>
                 <button className="view-btn" onClick={() => window.location.href = shareUrl}>閲覧する</button>
               </div>
@@ -163,7 +163,7 @@ function App() {
 
           {/* 過去のアップロード一覧エリア */}
           <div className="history-section">
-            <h2>過去のアップロード</h2>
+            <h2><font color="#6D6D6E">過去のアップロード</font></h2>
             {pdfList.length === 0 ? (
               <p className="no-data">まだアップロードしたPDFはありません。</p>
             ) : (
