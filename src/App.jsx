@@ -143,7 +143,7 @@ function App() {
         <div className="dashboard">
           {/* アップロードエリア */}
           <div className="upload-section">
-            <h2>新しいPDFをアップロード</h2>
+            <h2><font color="#6D6D6E">新しいPDFをアップロード</font></h2>
             <div className="upload-box">
               <input type="file" accept="application/pdf" onChange={handleFileChange} />
               <button onClick={handleUpload} disabled={!file || (progress > 0 && progress < 100) || isCompressing}>
@@ -154,7 +154,7 @@ function App() {
             
             {shareUrl && (
               <div className="share-box">
-                <p>アップロード成功</p>
+                <p><font color="#6D6D6E">アップロード成功</font></p>
                 <button onClick={() => copyToClipboard(shareUrl)}>URLをコピー</button>
                 <button className="view-btn" onClick={() => window.location.href = shareUrl}>閲覧する</button>
               </div>
