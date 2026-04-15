@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage } from './firebase';
+import { PDFDocument } from 'pdf-lib';
 import './App.css';
 
 function App() {
@@ -8,6 +9,7 @@ function App() {
   const [progress, setProgress] = useState(0);
   const [shareUrl, setShareUrl] = useState('');
   const [viewPdfUrl, setViewPdfUrl] = useState('');
+  const[isCompressing, setIsCompressing] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -23,8 +25,39 @@ function App() {
     }
   };
 
-  const handleUpload = () => {
+const handleUpload = async () => {
     if (!file) return;
+
+    let uploadFile = file;
+    setIsCompressing(true);
+
+    try {
+      // ファイルをArrayBufferとして読み込む
+      const arrayBuffer = await file.arrayBuffer();
+      // PDFとしてパースする
+      const pdfDoc = await PDFDocument.load(arrayBuffer);
+      
+      // オブジェクトストリームを有効にして保存（不要な構造データを削減）
+      const pdfBytes = await pdfDoc.save({ useObjectStreams: true });
+      
+      if (pdfBytes.length < file.size) {
+        uploadFile = new File([pdfBytes], file.name, { type: 'application/pdf' });
+        console.log(`圧縮成功: ${(file.size / 1024).toFixed(1)}KB -> ${(uploadFile.size / 1024).toFixed(1)}KB`);
+      } else {
+        console.log('圧縮によるサイズ削減がなかったため、元のファイルを使用します。');
+      }
+    } catch (error) {
+      console.error('圧縮処理中にエラーが発生しました:', error);
+    }
+
+    setIsCompressing(false);
+
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    if (uploadFile.size > MAX_FILE_SIZE) {
+      alert('ファイルサイズが10MBを超えています。Macのプレビューやオンラインツール（ILovePDFなど）で圧縮してから再度お試しください。');
+      return;
+    }
+
 
     // ファイル名の重複防止
     const uniqueFileName = `${Date.now()}_${file.name}`;
@@ -85,8 +118,11 @@ function App() {
       
       <div className="upload-box">
         <input type="file" accept="application/pdf" onChange={handleFileChange} />
-        <button onClick={handleUpload} disabled={!file || (progress > 0 && progress < 100)}>
-          アップロード
+        <button 
+          onClick={handleUpload} 
+          disabled={!file || (progress > 0 && progress < 100) || isCompressing}
+        >
+          {isCompressing ? '最適化中...' : 'アップロード'}
         </button>
       </div>
 
