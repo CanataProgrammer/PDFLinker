@@ -135,6 +135,7 @@ button:disabled { background-color: #ccc; cursor: not-allowed; }
 
 .pdf-name {
   color: #007bff;
+  font-size: 8;
   cursor: pointer;
   font-weight: 500;
   overflow: hidden;
